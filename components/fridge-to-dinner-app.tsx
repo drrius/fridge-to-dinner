@@ -443,7 +443,7 @@ export function FridgeToDinnerApp() {
           confidenceSummary={confidenceSummary}
           selectedRecipe={selectedRecipe}
         />
-        <section className="mx-auto flex min-h-svh w-full flex-col bg-background lg:min-h-[840px] lg:max-w-[420px] lg:overflow-hidden lg:rounded-[42px] lg:border lg:border-border lg:bg-paper lg:shadow-float">
+        <section className="mx-auto flex min-h-svh w-full max-w-[430px] flex-col bg-paper lg:min-h-[840px] lg:max-w-[420px] lg:overflow-hidden lg:rounded-[42px] lg:border lg:border-border lg:shadow-float">
           {content[screen]}
         </section>
       </div>
