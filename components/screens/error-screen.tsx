@@ -10,12 +10,14 @@ import { Button } from "@/components/ui/button";
 import { ScreenFrame } from "../screen-frame";
 
 type ErrorScreenProps = {
+  message: string;
   onManual: () => void;
   onRetake: () => void;
   onRetry: () => void;
 };
 
 export function ErrorScreen({
+  message,
   onManual,
   onRetake,
   onRetry,
@@ -34,8 +36,7 @@ export function ErrorScreen({
             That photo did not make it through.
           </h1>
           <p className="text-base leading-7 text-text-subtle">
-            Try a smaller image, retake the shelf, or skip straight to typing
-            ingredients.
+            {message}
           </p>
         </div>
       </div>

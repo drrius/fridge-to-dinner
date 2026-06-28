@@ -1,6 +1,6 @@
 import { ChefHatIcon, TimerIcon, UsersIcon } from "lucide-react";
 
-import type { Recipe } from "@/lib/schemas";
+import type { Recipe } from "@/lib/schema-types";
 import { cn } from "@/lib/utils";
 
 type MetaRowProps = {

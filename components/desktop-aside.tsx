@@ -1,17 +1,17 @@
 import Image from "next/image";
 import { Clock3Icon } from "lucide-react";
 
-import type { Recipe } from "@/lib/schemas";
+import type { Recipe } from "@/lib/schema-types";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
-import { demoImage } from "./mock-data";
+import { illustrationImage } from "./constants";
 import type { ConfidenceSummary, Screen } from "./types";
 
 type DesktopAsideProps = {
   screen: Screen;
   confidenceSummary: ConfidenceSummary;
-  selectedRecipe: Recipe;
+  selectedRecipe: Recipe | null;
 };
 
 export function DesktopAside({
@@ -36,7 +36,7 @@ export function DesktopAside({
 
         <div className="relative w-full max-w-[330px] self-center">
           <Image
-            src={demoImage}
+            src={illustrationImage}
             alt="Illustrated fridge shelves"
             width={960}
             height={1200}
@@ -64,7 +64,7 @@ export function DesktopAside({
             </p>
             <p className="text-lg font-bold capitalize text-ink">{screen}</p>
             <p className="text-sm leading-5 text-text-muted">
-              Best match: {selectedRecipe.title}
+              Best match: {selectedRecipe?.title ?? "Waiting for scan"}
             </p>
           </div>
         </div>

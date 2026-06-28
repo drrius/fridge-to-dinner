@@ -1,6 +1,6 @@
 import { XIcon } from "lucide-react";
 
-import type { Ingredient } from "@/lib/schemas";
+import type { Ingredient } from "@/lib/schema-types";
 import { cn } from "@/lib/utils";
 
 type IngredientChipProps = {

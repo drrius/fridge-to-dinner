@@ -6,8 +6,8 @@ import {
   createSuccessEnvelope,
   jsonContentType,
   parseAnalyzePreferences,
-  PublicApiError,
-} from "@/lib/schemas";
+} from "@/lib/schema-validation";
+import { PublicApiError } from "@/lib/schema-types";
 
 export const runtime = "nodejs";
 

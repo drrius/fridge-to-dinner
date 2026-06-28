@@ -1,4 +1,4 @@
-import { PublicApiError } from "@/lib/schemas";
+import { PublicApiError } from "@/lib/schema-types";
 
 export const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 export const MAX_MULTIPART_BYTES = MAX_IMAGE_BYTES + 256 * 1024;

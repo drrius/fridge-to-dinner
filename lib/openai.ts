@@ -1,10 +1,17 @@
+import { createOpenAI } from "@ai-sdk/openai";
+import { generateText, type ModelMessage, Output } from "ai";
+import { z } from "zod";
+
 import { imageToDataUrl, type ValidatedImage } from "@/lib/image";
 import {
+  CONFIDENCE_VALUES,
+  DIFFICULTY_VALUES,
+  INGREDIENT_SOURCE_VALUES,
   type Ingredient,
   type Preferences,
   PublicApiError,
-  validateGeneratedContent,
-} from "@/lib/schemas";
+} from "@/lib/schema-types";
+import { validateGeneratedContent } from "@/lib/schema-validation";
 
 type ProviderInput = {
   preferences: Preferences;
@@ -23,88 +30,97 @@ type OpenAIConfig = {
   model: string;
 };
 
-const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
+const generatedContentOutput = Output.object({
+  schema: z.object({
+    ingredients: z
+      .array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          confidence: z.enum(CONFIDENCE_VALUES),
+          source: z.enum(INGREDIENT_SOURCE_VALUES),
+        })
+      )
+      .min(1)
+      .max(30),
+    recipes: z
+      .array(
+        z.object({
+          id: z.string(),
+          title: z.string(),
+          minutes: z.number().int().positive(),
+          servings: z.number().int().positive(),
+          difficulty: z.enum(DIFFICULTY_VALUES),
+          have: z.array(z.string()),
+          need: z.array(z.string()),
+          steps: z.array(z.string()).min(1),
+          whyThisWorks: z.string(),
+        })
+      )
+      .min(1)
+      .max(5),
+  }),
+});
+
+type StructuredPrompt =
+  | {
+      system: string;
+      prompt: string;
+    }
+  | {
+      system: string;
+      messages: ModelMessage[];
+    };
 
 export async function analyzeImage(input: AnalyzeInput) {
-  if (shouldUseFixtureMode()) {
-    return createFixtureResult(input.preferences);
-  }
-
   const config = getOpenAIConfig();
   const imageUrl = await imageToDataUrl(input.image);
-  const raw = await callOpenAI(config, [
-    {
-      role: "system",
-      content: [
-        {
-          type: "input_text",
-          text: [
-            "You turn fridge or pantry photos into practical weeknight dinners.",
-            "Return only JSON matching the provided schema.",
-            "Do not claim certainty for unclear items.",
-          ].join(" "),
-        },
-      ],
-    },
-    {
-      role: "user",
-      content: [
-        {
-          type: "input_text",
-          text: `Analyze this food photo and suggest three recipes. Preferences: ${JSON.stringify(input.preferences)}.`,
-        },
-        {
-          type: "input_image",
-          image_url: imageUrl,
-        },
-      ],
-    },
-  ]);
+  const output = await generateStructuredContent(config, {
+    system: [
+      "You turn fridge or pantry photos into practical weeknight dinners.",
+      "Return ingredient ids as stable snake_case strings.",
+      "Do not claim certainty for unclear items.",
+      "Prefer simple recipes that use the detected ingredients first.",
+    ].join(" "),
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: [
+              "Analyze this food photo and suggest three dinner recipes.",
+              `Preferences: ${JSON.stringify(input.preferences)}.`,
+            ].join(" "),
+          },
+          {
+            type: "image",
+            image: imageUrl,
+          },
+        ],
+      },
+    ],
+  });
 
-  return validateGeneratedContent(raw);
+  return validateGeneratedContent(output);
 }
 
 export async function generateRecipes(input: RecipesInput) {
-  if (shouldUseFixtureMode()) {
-    return createFixtureResult(input.preferences, input.ingredients);
-  }
-
   const config = getOpenAIConfig();
-  const raw = await callOpenAI(config, [
-    {
-      role: "system",
-      content: [
-        {
-          type: "input_text",
-          text: [
-            "You generate practical weeknight recipes from a corrected ingredient list.",
-            "Return only JSON matching the provided schema.",
-            "Use the supplied ingredients as the have list where appropriate.",
-          ].join(" "),
-        },
-      ],
-    },
-    {
-      role: "user",
-      content: [
-        {
-          type: "input_text",
-          text: JSON.stringify({
-            ingredients: input.ingredients,
-            preferences: input.preferences,
-          }),
-        },
-      ],
-    },
-  ]);
+  const output = await generateStructuredContent(config, {
+    system: [
+      "You generate practical weeknight recipes from a corrected ingredient list.",
+      "Return ingredient ids as stable snake_case strings.",
+      "Use the supplied ingredients as the have list where appropriate.",
+      "Do not invent pantry staples as have items unless the user supplied them.",
+    ].join(" "),
+    prompt: JSON.stringify({
+      ingredients: input.ingredients,
+      preferences: input.preferences,
+    }),
+  });
 
-  return validateGeneratedContent(raw);
-}
-
-function shouldUseFixtureMode() {
-  const fixtureMode = process.env.FRIDGE_TO_DINNER_FIXTURE_MODE?.toLowerCase();
-
-  return fixtureMode === "1" || fixtureMode === "true" || !process.env.OPENAI_API_KEY;
+  return validateGeneratedContent(output);
 }
 
 function getOpenAIConfig(): OpenAIConfig {
@@ -115,257 +131,42 @@ function getOpenAIConfig(): OpenAIConfig {
     throw new PublicApiError(
       "provider_config_missing",
       "Recipe generation is not configured on this server.",
-      { status: 503, retryable: true },
+      { status: 503, retryable: true }
     );
   }
 
   return { apiKey, model };
 }
 
-async function callOpenAI(config: OpenAIConfig, input: unknown[]) {
-  let response: Response;
-
-  try {
-    response = await fetch(OPENAI_RESPONSES_URL, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${config.apiKey}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: config.model,
-        input,
-        store: false,
-        text: {
-          format: {
-            type: "json_schema",
-            name: "fridge_to_dinner_result",
-            strict: true,
-            schema: responseSchema,
-          },
-        },
-      }),
-    });
-  } catch {
-    throw new PublicApiError(
-      "provider_failed",
-      "Recipe generation is temporarily unavailable.",
-      { status: 502, retryable: true },
-    );
-  }
-
-  if (!response.ok) {
-    throw new PublicApiError(
-      "provider_failed",
-      "Recipe generation is temporarily unavailable.",
-      { status: 502, retryable: true },
-    );
-  }
-
-  let body: unknown;
-
-  try {
-    body = await response.json();
-  } catch {
-    throw new PublicApiError(
-      "provider_response_invalid",
-      "The recipe service returned an invalid response.",
-      { status: 502, retryable: true },
-    );
-  }
-
-  return parseOpenAIJson(body);
-}
-
-function parseOpenAIJson(body: unknown) {
-  if (isRecord(body) && typeof body.output_text === "string") {
-    return parseJsonOutput(body.output_text);
-  }
-
-  if (isRecord(body) && Array.isArray(body.output)) {
-    const text = body.output
-      .flatMap((item) => (isRecord(item) && Array.isArray(item.content) ? item.content : []))
-      .map((item) => (isRecord(item) && typeof item.text === "string" ? item.text : ""))
-      .join("");
-
-    if (text) {
-      return parseJsonOutput(text);
-    }
-  }
-
-  throw new PublicApiError(
-    "provider_response_invalid",
-    "The recipe service returned an invalid response.",
-    { status: 502, retryable: true },
-  );
-}
-
-function parseJsonOutput(value: string) {
-  try {
-    return JSON.parse(value);
-  } catch {
-    throw new PublicApiError(
-      "provider_response_invalid",
-      "The recipe service returned an invalid response.",
-      { status: 502, retryable: true },
-    );
-  }
-}
-
-function createFixtureResult(
-  preferences: Preferences,
-  ingredients: Ingredient[] = fixtureIngredients,
+async function generateStructuredContent(
+  config: OpenAIConfig,
+  structuredPrompt: StructuredPrompt
 ) {
-  const normalizedIngredients = ingredients.map((ingredient) => ({
-    ...ingredient,
-    confidence: ingredient.source === "user" ? "high" : ingredient.confidence,
-  })) satisfies Ingredient[];
+  const openai = createOpenAI({ apiKey: config.apiKey });
 
-  return validateGeneratedContent({
-    ingredients: normalizedIngredients,
-    recipes: createFixtureRecipes(normalizedIngredients, preferences),
-  });
-}
+  try {
+    const model = openai(config.model);
+    const result =
+      "messages" in structuredPrompt
+        ? await generateText({
+            model,
+            output: generatedContentOutput,
+            system: structuredPrompt.system,
+            messages: structuredPrompt.messages,
+          })
+        : await generateText({
+            model,
+            output: generatedContentOutput,
+            system: structuredPrompt.system,
+            prompt: structuredPrompt.prompt,
+          });
 
-function createFixtureRecipes(ingredients: Ingredient[], preferences: Preferences) {
-  const have = ingredients.map((ingredient) => ingredient.name);
-  const baseNeed = preferences.vegetarian ? ["lemon", "fresh herbs"] : ["chicken broth"];
-  const quickNeed = preferences.under30 ? ["tortillas"] : ["parmesan"];
-
-  return [
-    {
-      id: "recipe_1",
-      title: preferences.vegetarian ? "Tomato Bean Skillet" : "Fridge Fried Rice",
-      minutes: preferences.under30 ? 20 : 30,
-      servings: 2,
-      difficulty: "easy",
-      have: have.slice(0, 4),
-      need: baseNeed,
-      steps: [
-        "Warm a large skillet and add the heartier ingredients first.",
-        "Fold in the faster-cooking items until just tender.",
-        "Season, taste, and finish with a bright squeeze of lemon or sauce.",
-      ],
-      whyThisWorks:
-        "It turns the most flexible fridge ingredients into a fast skillet dinner with a small flavor boost.",
-    },
-    {
-      id: "recipe_2",
-      title: "Clean-Out Quesadillas",
-      minutes: 18,
-      servings: 2,
-      difficulty: "easy",
-      have: have.slice(0, 3),
-      need: quickNeed,
-      steps: [
-        "Chop the ingredients into small pieces so the filling heats evenly.",
-        "Layer the filling into tortillas and toast until crisp on both sides.",
-        "Slice and serve with any yogurt, salsa, or hot sauce you have.",
-      ],
-      whyThisWorks:
-        "A tortilla makes mixed leftovers feel intentional while keeping the cook time short.",
-    },
-    {
-      id: "recipe_3",
-      title: "Pantry Soup Bowl",
-      minutes: preferences.under30 ? 25 : 35,
-      servings: 3,
-      difficulty: "medium",
-      have: have.slice(0, 5),
-      need: preferences.vegetarian ? ["vegetable stock"] : ["stock"],
-      steps: [
-        "Simmer the firmest ingredients with stock until they start to soften.",
-        "Add delicate items near the end so they keep their texture.",
-        "Serve as a brothy bowl with toast, rice, or noodles if available.",
-      ],
-      whyThisWorks:
-        "Soup is forgiving with uneven fridge odds and ends, and it preserves the have-versus-need split clearly.",
-    },
-  ];
-}
-
-const fixtureIngredients = [
-  {
-    id: "ing_eggs",
-    name: "eggs",
-    confidence: "high",
-    source: "vision",
-  },
-  {
-    id: "ing_rice",
-    name: "rice",
-    confidence: "medium",
-    source: "vision",
-  },
-  {
-    id: "ing_carrot",
-    name: "carrot",
-    confidence: "medium",
-    source: "vision",
-  },
-  {
-    id: "ing_spinach",
-    name: "spinach",
-    confidence: "low",
-    source: "vision",
-  },
-] satisfies Ingredient[];
-
-const responseSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["ingredients", "recipes"],
-  properties: {
-    ingredients: {
-      type: "array",
-      minItems: 1,
-      maxItems: 30,
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["id", "name", "confidence", "source"],
-        properties: {
-          id: { type: "string" },
-          name: { type: "string" },
-          confidence: { type: "string", enum: ["high", "medium", "low"] },
-          source: { type: "string", enum: ["vision", "user", "suggested"] },
-        },
-      },
-    },
-    recipes: {
-      type: "array",
-      minItems: 1,
-      maxItems: 5,
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: [
-          "id",
-          "title",
-          "minutes",
-          "servings",
-          "difficulty",
-          "have",
-          "need",
-          "steps",
-          "whyThisWorks",
-        ],
-        properties: {
-          id: { type: "string" },
-          title: { type: "string" },
-          minutes: { type: "integer" },
-          servings: { type: "integer" },
-          difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
-          have: { type: "array", items: { type: "string" } },
-          need: { type: "array", items: { type: "string" } },
-          steps: { type: "array", items: { type: "string" } },
-          whyThisWorks: { type: "string" },
-        },
-      },
-    },
-  },
-};
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+    return result.output;
+  } catch {
+    throw new PublicApiError(
+      "provider_failed",
+      "Recipe generation is temporarily unavailable.",
+      { status: 502, retryable: true }
+    );
+  }
 }

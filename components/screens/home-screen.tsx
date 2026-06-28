@@ -1,16 +1,15 @@
 import Image from "next/image";
-import { CameraIcon, ImageIcon, KeyboardIcon } from "lucide-react";
+import { CameraIcon, KeyboardIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
 import { PrivacyNote } from "../privacy-note";
 import { ScreenFrame } from "../screen-frame";
-import { demoImage } from "../mock-data";
+import { illustrationImage } from "../constants";
 
 type HomeScreenProps = {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onChoosePhoto: () => void;
-  onDemoPhoto: () => void;
   onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onManual: () => void;
   onPrivacy: () => void;
@@ -19,7 +18,6 @@ type HomeScreenProps = {
 export function HomeScreen({
   fileInputRef,
   onChoosePhoto,
-  onDemoPhoto,
   onFileChange,
   onManual,
   onPrivacy,
@@ -59,7 +57,7 @@ export function HomeScreen({
 
           <div className="relative mx-auto hidden w-full max-w-[250px] sm:block lg:hidden">
             <Image
-              src={demoImage}
+              src={illustrationImage}
               alt="Illustrated fridge shelves"
               width={960}
               height={1200}
@@ -74,14 +72,10 @@ export function HomeScreen({
             <CameraIcon data-icon="inline-start" />
             Snap your fridge
           </Button>
-          <div className="grid grid-cols-2 gap-3">
-            <Button variant="outline" size="lg" onClick={onDemoPhoto}>
-              <ImageIcon data-icon="inline-start" />
-              Demo
-            </Button>
+          <div className="grid grid-cols-1 gap-3">
             <Button variant="outline" size="lg" onClick={onManual}>
               <KeyboardIcon data-icon="inline-start" />
-              Type
+              Type ingredients
             </Button>
           </div>
         </div>

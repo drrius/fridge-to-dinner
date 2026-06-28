@@ -1,4 +1,4 @@
-import type { Preferences } from "@/lib/schemas";
+import type { Preferences } from "@/lib/schema-types";
 
 export type Screen =
   | "home"
