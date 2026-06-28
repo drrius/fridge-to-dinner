@@ -62,6 +62,14 @@ export function RenderScreen({ flow }: RenderScreenProps) {
           onCancel={flow.resetFlow}
         />
       );
+    case "generating":
+      return (
+        <AnalyzingScreen
+          progress={flow.progress}
+          status={flow.status}
+          onCancel={flow.resetFlow}
+        />
+      );
     case "results":
       return (
         <ResultsScreen

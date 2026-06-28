@@ -69,7 +69,7 @@ export function useFridgeToDinnerFlow() {
   }, []);
 
   useEffect(() => {
-    if (screen !== "analyzing") {
+    if (screen !== "analyzing" && screen !== "generating") {
       return;
     }
 
@@ -144,6 +144,7 @@ export function useFridgeToDinnerFlow() {
     setRecipes([]);
     setSelectedRecipeId(null);
     setErrorMessage(defaultErrorMessage);
+    setIsRegenerating(false);
     setScreen("home");
   }
 
@@ -154,15 +155,25 @@ export function useFridgeToDinnerFlow() {
       return;
     }
 
-    setIngredients((current) => [
-      ...current,
-      {
-        id: ingredientId(normalized, current.length),
-        name: normalized.replace(/\?$/, ""),
-        confidence: "high",
-        source: "user",
-      },
-    ]);
+    const ingredientName = normalized.replace(/\?$/, "");
+
+    setIngredients((current) => {
+      const withoutAcceptedSuggestion = current.filter(
+        (ingredient) =>
+          ingredient.source !== "suggested" ||
+          ingredient.name.toLowerCase() !== ingredientName.toLowerCase()
+      );
+
+      return [
+        ...withoutAcceptedSuggestion,
+        {
+          id: ingredientId(ingredientName, withoutAcceptedSuggestion.length),
+          name: ingredientName,
+          confidence: "high",
+          source: "user",
+        },
+      ];
+    });
     setNewIngredient("");
   }
 
@@ -171,16 +182,47 @@ export function useFridgeToDinnerFlow() {
   }
 
   async function regenerateRecipes() {
+    const confirmedIngredients = ingredients.filter(
+      (ingredient) => ingredient.source !== "suggested"
+    );
+
+    if (confirmedIngredients.length === 0) {
+      toast.error("Keep at least one confirmed ingredient before regenerating.");
+      return;
+    }
+
     setIsRegenerating(true);
+    const controller = beginRequest(activeRequestRef);
 
     try {
-      const result = await regenerateFromIngredients(ingredients, preferences);
+      const result = await regenerateFromIngredients(
+        confirmedIngredients,
+        preferences,
+        {
+          signal: controller.signal,
+        }
+      );
+
+      if (controller.signal.aborted) {
+        return;
+      }
+
       applyApiResult(result);
       toast.success("Recipes refreshed from your edited shelf.");
     } catch (error) {
+      if (controller.signal.aborted) {
+        return;
+      }
+
       toast.error(toErrorMessage(error));
     } finally {
-      setIsRegenerating(false);
+      const isCurrentRequest = activeRequestRef.current === controller;
+
+      finishRequest(activeRequestRef, controller);
+
+      if (isCurrentRequest) {
+        setIsRegenerating(false);
+      }
     }
   }
 
@@ -192,7 +234,7 @@ export function useFridgeToDinnerFlow() {
       return;
     }
 
-    startLoading();
+    startLoading("generating");
     const controller = beginRequest(activeRequestRef);
 
     try {
@@ -228,10 +270,11 @@ export function useFridgeToDinnerFlow() {
     setScreen("error");
   }
 
-  function startLoading() {
+  function startLoading(nextScreen: Extract<Screen, "analyzing" | "generating"> = "analyzing") {
+    setIsRegenerating(false);
     setProgress(8);
     setStatusIndex(0);
-    setScreen("analyzing");
+    setScreen(nextScreen);
   }
 
   function applyApiResult(result: { ingredients: Ingredient[]; recipes: Recipe[] }) {
