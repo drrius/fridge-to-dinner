@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { CameraIcon, KeyboardIcon } from "lucide-react";
+import { CameraIcon, ImageIcon, KeyboardIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -8,16 +8,20 @@ import { ScreenFrame } from "../screen-frame";
 import { illustrationImage } from "../constants";
 
 type HomeScreenProps = {
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
-  onChoosePhoto: () => void;
+  albumInputRef: React.RefObject<HTMLInputElement | null>;
+  cameraInputRef: React.RefObject<HTMLInputElement | null>;
+  onChooseAlbumPhoto: () => void;
+  onChooseCameraPhoto: () => void;
   onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onManual: () => void;
   onPrivacy: () => void;
 };
 
 export function HomeScreen({
-  fileInputRef,
-  onChoosePhoto,
+  albumInputRef,
+  cameraInputRef,
+  onChooseAlbumPhoto,
+  onChooseCameraPhoto,
   onFileChange,
   onManual,
   onPrivacy,
@@ -25,11 +29,18 @@ export function HomeScreen({
   return (
     <ScreenFrame footer={<PrivacyNote onClick={onPrivacy} />}>
       <input
-        ref={fileInputRef}
-        className="sr-only"
+        ref={cameraInputRef}
+        className="hidden"
         type="file"
         accept="image/*"
         capture="environment"
+        onChange={onFileChange}
+      />
+      <input
+        ref={albumInputRef}
+        className="hidden"
+        type="file"
+        accept="image/*"
         onChange={onFileChange}
       />
 
@@ -68,14 +79,18 @@ export function HomeScreen({
         </div>
 
         <div className="flex flex-col gap-3">
-          <Button size="lg" onClick={onChoosePhoto}>
+          <Button size="lg" onClick={onChooseCameraPhoto}>
             <CameraIcon data-icon="inline-start" />
             Snap your fridge
           </Button>
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-2 gap-3">
+            <Button variant="outline" size="lg" onClick={onChooseAlbumPhoto}>
+              <ImageIcon data-icon="inline-start" />
+              Album
+            </Button>
             <Button variant="outline" size="lg" onClick={onManual}>
               <KeyboardIcon data-icon="inline-start" />
-              Type ingredients
+              Type
             </Button>
           </div>
         </div>

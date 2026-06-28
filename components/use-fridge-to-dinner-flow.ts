@@ -22,7 +22,8 @@ import { useRecipeActions } from "./use-recipe-actions";
 const initialManualText = "eggs, cooked rice, carrots, spinach, cheddar";
 
 export function useFridgeToDinnerFlow() {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const albumInputRef = useRef<HTMLInputElement>(null);
   const photoObjectUrlRef = useRef<string | null>(null);
   const activeRequestRef = useRef<AbortController | null>(null);
   const [screen, setScreen] = useState<Screen>("home");
@@ -81,12 +82,17 @@ export function useFridgeToDinnerFlow() {
     return () => window.clearInterval(interval);
   }, [screen]);
 
-  function choosePhoto() {
-    fileInputRef.current?.click();
+  function chooseCameraPhoto() {
+    cameraInputRef.current?.click();
+  }
+
+  function chooseAlbumPhoto() {
+    albumInputRef.current?.click();
   }
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
+    event.currentTarget.value = "";
 
     if (!file) {
       return;
@@ -293,12 +299,14 @@ export function useFridgeToDinnerFlow() {
 
   return {
     addIngredient,
-    choosePhoto,
+    albumInputRef,
+    cameraInputRef,
+    chooseAlbumPhoto,
+    chooseCameraPhoto,
     confidenceSummary,
     copyRecipe,
     currentPhoto: photoUrl,
     errorMessage,
-    fileInputRef,
     handleFileChange,
     ingredients,
     isRegenerating,
