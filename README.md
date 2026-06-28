@@ -30,8 +30,9 @@ Variables planned for the Next.js API service:
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `OPENAI_API_KEY` | Yes for AI routes | Server-side provider key. Never expose it to the iOS client. |
-| `OPENAI_MODEL` | Yes for AI routes | Vision-capable model used by `/api/analyze` and text recipe regeneration. |
+| `OPENAI_API_KEY` | Yes outside fixture mode | Server-side provider key. Never expose it to the iOS client. |
+| `OPENAI_MODEL` | Yes outside fixture mode | Vision-capable model used by `/api/analyze` and text recipe regeneration. |
+| `FRIDGE_TO_DINNER_FIXTURE_MODE` | No | Set to `true` to return structured fixture data without calling a provider. Routes also use fixtures when no API key is set. |
 | `RATE_LIMIT_DAILY_SCANS` | Later | Maximum free image scans per client/day once rate limiting ships. |
 | `RATE_LIMIT_WINDOW_SECONDS` | Later | Rate-limit window length for future request throttling. |
 
@@ -53,6 +54,8 @@ pnpm dev
 ```
 
 Open the status page at [http://localhost:3000](http://localhost:3000). The API routes will live under `/api/*`.
+
+For local backend work without an API key, leave `FRIDGE_TO_DINNER_FIXTURE_MODE=true`. `POST /api/analyze` still validates the uploaded image, then returns fixture ingredients and recipes. `POST /api/recipes` regenerates fixture recipes from the ingredient JSON body and does not require an image.
 
 Open the iOS app with:
 
