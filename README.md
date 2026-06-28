@@ -31,9 +31,8 @@ Variables planned for the Next.js app/API:
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `OPENAI_API_KEY` | Yes outside fixture mode | Server-side provider key. Never expose it to browser code. |
-| `OPENAI_MODEL` | Yes outside fixture mode | Vision-capable model used by `/api/analyze` and text recipe regeneration. |
-| `FRIDGE_TO_DINNER_FIXTURE_MODE` | No | Set to `true` to return structured fixture data without calling a provider. Routes also use fixtures when no API key is set. |
+| `OPENAI_API_KEY` | Yes | Server-side provider key. Never expose it to browser code. |
+| `OPENAI_MODEL` | Yes | Vision-capable model used by `/api/analyze` and text recipe regeneration. |
 | `RATE_LIMIT_DAILY_SCANS` | Later | Maximum free image scans per client/day once rate limiting ships. |
 | `RATE_LIMIT_WINDOW_SECONDS` | Later | Rate-limit window length for future request throttling. |
 
@@ -55,10 +54,10 @@ pnpm dev
 
 Open the app at [http://localhost:3000](http://localhost:3000). API routes live under `/api/*`.
 
-For local backend work without an API key, leave `FRIDGE_TO_DINNER_FIXTURE_MODE=true`. `POST /api/analyze` still validates the uploaded image, then returns fixture ingredients and recipes. `POST /api/recipes` regenerates fixture recipes from ingredient JSON and does not require an image.
+`POST /api/analyze` requires a real image upload and live provider configuration. `POST /api/recipes` regenerates recipes from ingredient JSON and also calls the provider.
 
 ## Implementation Roadmap
 
-Phase 0 and the mock frontend are implemented: the repo is web-first, the homepage is the product UI, shadcn components are customized to the design system, and the native iOS target has been removed.
+Phase 0 and the web frontend are implemented: the repo is web-first, the homepage is the product UI, shadcn components are customized to the design system, and the native iOS target has been removed.
 
-Next up: wire the frontend to `/api/analyze` and `/api/recipes`, add browser-side image downscaling/compression, and keep fixture mode available for fast local demos.
+Next up: test the full live photo-to-recipes path against the configured provider and add production cost controls.

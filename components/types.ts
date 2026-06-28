@@ -1,10 +1,11 @@
-import type { Preferences } from "@/lib/schemas";
+import type { Preferences } from "@/lib/schema-types";
 
 export type Screen =
   | "home"
   | "manual"
   | "review"
   | "analyzing"
+  | "generating"
   | "results"
   | "detail"
   | "privacy"

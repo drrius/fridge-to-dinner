@@ -1,6 +1,6 @@
 import { WandSparklesIcon } from "lucide-react";
 
-import type { Preferences } from "@/lib/schemas";
+import type { Preferences } from "@/lib/schema-types";
 import { Button } from "@/components/ui/button";
 import {
   Field,

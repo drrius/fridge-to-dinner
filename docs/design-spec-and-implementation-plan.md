@@ -93,7 +93,7 @@ Suggested state ownership:
 - Extract visual sections into smaller components once repetition appears, but keep API effects tied to explicit user actions.
 - Async calls should run from button/form events, never as a render side effect.
 - Retake, retry, cancel, or new edits must prevent stale requests from overwriting newer state.
-- Fixture mode should stay easy to trigger for demos and UI work without provider secrets.
+- Local development should use real API calls; missing provider config should fail clearly.
 
 ## 5. Data Contract
 
@@ -256,17 +256,17 @@ Goal: return validated mock-shaped data from the API, then swap in the AI call.
 
 Deliverables:
 
-- Implement shared TypeScript schemas in `lib/schemas.ts`.
+- Implement shared TypeScript schema types and validation helpers in `lib/schema-*`.
 - Implement lazy provider client setup in `lib/openai.ts`.
 - Implement image validation helpers in `lib/image.ts`.
 - Implement `POST /api/analyze`, `POST /api/recipes`, and `GET /api/health`.
-- Add fixture responses for local development and tests.
+- Add mocked provider tests without exposing a user-facing fake-data mode.
 - Add basic request size limits and sanitized error envelopes.
 
 Acceptance criteria:
 
 - `pnpm lint` and `pnpm build` pass.
-- `/api/analyze` rejects invalid images and returns structured data for a valid fixture.
+- `/api/analyze` rejects invalid images and returns structured data from the provider.
 - `/api/recipes` regenerates from ingredient JSON without requiring an image.
 
 ### Phase 2 - Web UI foundation
@@ -299,7 +299,7 @@ Deliverables:
 - Downscale and compress images before upload.
 - Upload multipart form data to `/api/analyze`.
 - Wire loading, success, cancellation, retry, timeout, and invalid-image states.
-- Keep fixture mode available for local demos and UI work.
+- Surface provider/configuration failures cleanly in the UI.
 
 Acceptance criteria:
 
@@ -379,7 +379,10 @@ Backend:
 - `app/api/analyze/route.ts`: multipart image analysis endpoint.
 - `app/api/recipes/route.ts`: recipe regeneration endpoint.
 - `app/api/health/route.ts`: basic health check.
-- `lib/schemas.ts`: request/response validation and TypeScript types.
+- `lib/schema-types.ts`: shared request/response TypeScript types.
+- `lib/schema-validation.ts`: request/response validation and envelopes.
+- `lib/schema-recipe-validation.ts`: recipe response validation.
+- `lib/schema-parse-helpers.ts`: low-level validation helpers.
 - `lib/openai.ts`: lazy provider client and model config.
 - `lib/image.ts`: byte-size, MIME, and normalization helpers.
 - `lib/rate-limit.ts`: cost-control gate.

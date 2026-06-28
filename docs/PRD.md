@@ -128,7 +128,7 @@ Distribution is the strategy: short demo videos, posts in cooking/budget communi
 
 ## 12. Roadmap (fits ~10 hrs/week)
 - **Milestone 1 - Mockable web product:** mobile-first Next.js UI, mock data, responsive desktop layout.
-- **Milestone 2 - Magic moment:** browser image preprocessing, `/api/analyze`, fixture mode, real photo to recipes.
+- **Milestone 2 - Magic moment:** browser image preprocessing, `/api/analyze`, real photo to recipes.
 - **Milestone 3 - Usable:** editable ingredients, `/api/recipes`, loading/retry polish, privacy copy.
 - **Milestone 4 - Shareable:** Web Share API / copy card, rate limit, public demo deploy.
 - **Milestone 5 - Monetize (only if traction):** scan limits, paid tier, saved favorites.

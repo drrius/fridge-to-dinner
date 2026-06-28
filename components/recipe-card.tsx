@@ -4,7 +4,7 @@ import {
   ShoppingBasketIcon,
 } from "lucide-react";
 
-import type { Recipe } from "@/lib/schemas";
+import type { Recipe } from "@/lib/schema-types";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

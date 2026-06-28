@@ -1,4 +1,4 @@
-import type { Preferences } from "@/lib/schemas";
+import type { Preferences } from "@/lib/schema-types";
 import { Field, FieldTitle } from "@/components/ui/field";
 import {
   ToggleGroup,
