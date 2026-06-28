@@ -7,8 +7,6 @@ export const MAX_JSON_BYTES = 64 * 1024;
 export const SUPPORTED_IMAGE_TYPES = [
   "image/jpeg",
   "image/png",
-  "image/heic",
-  "image/heif",
 ] as const;
 
 export type SupportedImageType = (typeof SUPPORTED_IMAGE_TYPES)[number];
@@ -55,7 +53,7 @@ export async function validateImageFile(value: FormDataEntryValue | null) {
   if (!mimeType) {
     throw new PublicApiError(
       "image_type_unsupported",
-      "Use a JPEG, PNG, HEIC, or HEIF image.",
+      "Use a JPEG or PNG image. Convert HEIC or HEIF before upload.",
       { status: 415 },
     );
   }
@@ -124,21 +122,5 @@ function hasExpectedSignature(bytes: Uint8Array, mimeType: SupportedImageType) {
     );
   }
 
-  return (
-    bytes[4] === 0x66 &&
-    bytes[5] === 0x74 &&
-    bytes[6] === 0x79 &&
-    bytes[7] === 0x70 &&
-    hasHeifBrand(bytes)
-  );
-}
-
-function hasHeifBrand(bytes: Uint8Array) {
-  const header = new TextDecoder("ascii")
-    .decode(bytes)
-    .replaceAll("\u0000", " ");
-
-  return ["heic", "heix", "hevc", "hevx", "mif1", "msf1"].some((brand) =>
-    header.includes(brand),
-  );
+  return false;
 }
