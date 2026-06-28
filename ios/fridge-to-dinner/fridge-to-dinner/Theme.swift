@@ -48,30 +48,35 @@ extension Color {
 }
 
 // MARK: - Typography
-//
-// Fonts must be bundled to apply: add the .ttf/.otf files to the target and
-// register them (target ▸ Info ▸ "Fonts provided by application", i.e.
-// INFOPLIST_KEY_UIAppFonts). Until then `Font.custom` silently falls back to
-// the system font — no crash. Use the PostScript name if the family name fails.
-
-enum BrandFont {
-    static let display = "DMSerifDisplay-Regular"   // DM Serif Display
-    static let sans    = "HankenGrotesk-Regular"    // Hanken Grotesk
-    static let mono    = "DMMono-Regular"           // DM Mono
-}
 
 extension Font {
-    /// Serif display face — headings, hero text. Scales with Dynamic Type.
+    /// System serif display face — headings, hero text.
     static func display(_ size: CGFloat, relativeTo style: TextStyle = .largeTitle) -> Font {
-        .custom(BrandFont.display, size: size, relativeTo: style)
+        .system(size: size, weight: .bold, design: .serif)
     }
-    /// Body sans face. Scales with Dynamic Type.
+    /// Italic system serif display face — emphasis in hero text.
+    static func displayItalic(_ size: CGFloat, relativeTo style: TextStyle = .largeTitle) -> Font {
+        .system(size: size, weight: .bold, design: .serif).italic()
+    }
+    /// System sans face.
     static func sans(_ size: CGFloat, relativeTo style: TextStyle = .body) -> Font {
-        .custom(BrandFont.sans, size: size, relativeTo: style)
+        .system(size: size, weight: .regular, design: .default)
     }
-    /// Mono face — quantities, codes. Scales with Dynamic Type.
-    static func mono(_ size: CGFloat, relativeTo style: TextStyle = .body) -> Font {
-        .custom(BrandFont.mono, size: size, relativeTo: style)
+    /// Semibold system sans face — buttons, compact emphasis.
+    static func sansSemiBold(_ size: CGFloat, relativeTo style: TextStyle = .body) -> Font {
+        .system(size: size, weight: .semibold, design: .default)
+    }
+    /// Bold system sans face — short labels that need stronger hierarchy.
+    static func sansBold(_ size: CGFloat, relativeTo style: TextStyle = .body) -> Font {
+        .system(size: size, weight: .bold, design: .default)
+    }
+    /// System mono face — quantities, codes.
+    static func mono(
+        _ size: CGFloat,
+        weight: Font.Weight = .regular,
+        relativeTo style: TextStyle = .body
+    ) -> Font {
+        .system(size: size, weight: weight, design: .monospaced)
     }
 }
 
