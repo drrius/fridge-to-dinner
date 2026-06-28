@@ -1,39 +1,38 @@
 # Fridge to Dinner - Design Spec and Implementation Plan
 
-Status: Draft v1; Phase 0 implemented 2026-06-28  
+Status: Draft v2; web-first direction updated 2026-06-28  
 Date: 2026-06-27  
 Primary sources: `docs/PRD.md`, `docs/design-system.md`, `docs/design/Fridge-to-Dinner.dc.html`
 
 ## 1. Product Direction
 
-Fridge to Dinner turns a photo of a fridge or pantry into a short, editable ingredient list and three recipes the user can cook now. The core promise remains the PRD's "photo in, dinner out" moment: fast, low-friction, no account, no saved photo history.
+Fridge to Dinner turns a fridge or pantry photo into a short, editable ingredient list and three recipes the user can cook now. The core promise remains "photo in, dinner out": fast, low-friction, no account, no saved photo history.
 
-The current repo has a Next.js API service shell and a SwiftUI iOS target. Phase 0 confirmed v1 implementation as:
+The current repo is now a web-first Next.js app:
 
-- SwiftUI iPhone client for the product experience.
-- Next.js 16 App Router route handlers as a backend-for-frontend API.
-- Stateless processing in v1: no accounts, no database, no image persistence.
-
-If the product direction moves back to web-first, the API contract and most design primitives still apply. The client implementation phases would move from SwiftUI views to React components.
+- Next.js 16 App Router serves the product UI from the repo root.
+- React client components own the scan flow and use shadcn/ui source components customized to the design system.
+- Next.js route handlers under `app/api` act as the backend-for-frontend and keep provider keys server-side.
+- v1 remains stateless: no accounts, no database, no saved recipe history, no image persistence.
+- The previous native iOS target has been removed from this repo. SwiftUI can return as a follow-up after the web product proves the loop.
 
 ## 2. MVP User Experience
 
 ### Primary flow
 
-1. Home: one strong "Snap your fridge" action, optional "Type ingredients" escape hatch, no login reassurance.
-2. Capture: user takes or chooses a photo.
-3. Review: show the image with "Use this photo" and "Retake".
-4. Analyze: upload a downscaled image, show warm progress copy and a scanning visual.
-5. Results: show editable ingredient chips and three recipe cards.
-6. Recipe detail: show have/need split, cooking steps, time, servings, and "Start cooking".
-7. Regenerate: if ingredients are edited, call the cheaper recipe-only endpoint.
-8. Share or restart: native share sheet and "Snap again".
+1. Home: one strong "Snap your fridge" action, optional "Type ingredients" escape hatch, no-login reassurance.
+2. Capture/review: browser file picker or camera capture, followed by a photo preview and "Use this photo" / "Retake".
+3. Analyze: downscale/compress the image in the browser, upload it, and show warm progress copy with a scanning visual.
+4. Results: show editable ingredient chips and three recipe cards.
+5. Recipe detail: show have/need split, cooking steps, time, servings, and "Start cooking".
+6. Regenerate: if ingredients are edited, call the cheaper recipe-only endpoint.
+7. Share or restart: Web Share API where available, clipboard/share-card fallback, and "Snap again".
 
 ### Required failure paths
 
-- Camera unavailable: fall back to photo library and manual ingredient entry.
+- Browser camera unavailable: fall back to photo-library upload and manual ingredient entry.
 - Low confidence / unclear image: show detected chips, suggested chips, and a friendly retake path.
-- API timeout: preserve the photo and offer retry, retake, or manual ingredients.
+- API timeout: preserve the selected photo and offer retry, retake, or manual ingredients.
 - Rate limited: explain the daily free scan limit without implying data loss.
 - Bad AI output: validate shape server-side and return a recoverable error.
 
@@ -48,55 +47,57 @@ Use `docs/design-system.md` as the visual source of truth. The product should fe
 - Semantic pair: leaf for "you have", tomato/pink tint for "need/grab".
 - Typography: serif display for headlines and recipe titles, sans for interface text, mono for status/meta labels.
 - Cards: surface fill, low ink border, restrained elevation. Use the hard offset shadow only for emphasis moments.
-- Motion: scanning sweep, shimmer, and loading dots should be subtle and cancelable through reduced motion settings.
+- Motion: scanning sweep, shimmer, and loading dots should be subtle and respect reduced-motion preferences.
 
 ### Component inventory
 
-- `PrimaryButton`: full-width tomato pill, 44 pt minimum height.
-- `SecondaryButton`: surface or transparent pill with ink border.
+- `Button`: shadcn base customized for tomato primary, surface secondary, and icon-only actions.
 - `IngredientChip`: removable pill; supports normal, suggested, edited, and invalid states.
 - `PreferenceToggle`: selected/unselected pill for options like "Under 30 min" and "Vegetarian".
 - `RecipeCard`: title, meta row, best-match badge, have/need summary, expand affordance.
 - `RecipeDetail`: hero title, have/need sections, steps, restart/share actions.
 - `LoadingScanView`: photo preview plus scan sweep and rotating status copy.
 - `ErrorRecoveryView`: concise reason plus recovery actions.
+- `PrivacySheet`: reassurance that photos are processed once and not saved.
 
 ### Accessibility requirements
 
-- Every tappable control is at least 44 x 44 pt.
+- Every interactive control is at least 44 x 44 CSS pixels.
 - Ingredient status cannot rely on color alone; include labels such as "You have" and "Grab".
-- Dynamic Type must not clip primary buttons, chips, recipe titles, or step text.
-- VoiceOver labels should describe chip removal, recipe expansion, retake, and share actions.
-- Respect Reduce Motion for sweep/shimmer animations.
+- Text must not clip primary buttons, chips, recipe titles, or step text on mobile or desktop.
+- Buttons and icon buttons need clear accessible names.
+- Respect `prefers-reduced-motion` for sweep/shimmer animations.
 
 ## 4. Information Architecture and State
 
-The iOS app is a single-flow app, so start with one `NavigationStack` rather than tabs.
+The web app is a single-flow product experience rendered from the App Router root. Keep browser-only state in a focused client component rather than adding global state or premature routing.
 
-Suggested route model:
+Suggested screen model:
 
-```swift
-enum Route: Hashable {
-    case reviewPhoto
-    case analyzing
-    case results
-    case recipeDetail(id: String)
-    case manualIngredients
-    case privacy
-}
+```ts
+type Screen =
+  | "home"
+  | "manual"
+  | "review"
+  | "analyzing"
+  | "results"
+  | "detail"
+  | "privacy"
+  | "error"
+  | "share";
 ```
 
 Suggested state ownership:
 
-- `@State` at the scan-flow root owns current photo, ingredients, recipes, preferences, and request state.
-- A small `@Observable` `ScanSession` is acceptable because the flow spans multiple screens.
-- `FridgeAPIClient` is an injected service, not a global singleton in feature views.
-- Async calls run from explicit user actions or `.task(id:)`, never from `body`.
-- Cancellation is normal: retake, back navigation, or new edits should cancel stale in-flight requests.
+- `components/fridge-to-dinner-app.tsx` owns selected photo, ingredients, recipes, preferences, selected recipe, and request state.
+- Extract visual sections into smaller components once repetition appears, but keep API effects tied to explicit user actions.
+- Async calls should run from button/form events, never as a render side effect.
+- Retake, retry, cancel, or new edits must prevent stale requests from overwriting newer state.
+- Fixture mode should stay easy to trigger for demos and UI work without provider secrets.
 
 ## 5. Data Contract
 
-Use one shared schema shape between the SwiftUI client and Next.js route handlers. Keep the client tolerant of optional fields, but keep server output strict.
+Use one shared schema shape between the React client and Next.js route handlers. Keep the client tolerant of optional fields, but keep server output strict.
 
 ### Ingredient
 
@@ -170,7 +171,7 @@ Purpose: process an image and return ingredients plus recipes.
 Request:
 
 - `multipart/form-data`
-- `image`: JPEG, PNG, or HEIC converted by the client where possible.
+- `image`: JPEG, PNG, or HEIC converted by the browser where possible.
 - `preferences`: optional JSON string with toggles such as `vegetarian`, `under30`, `useExpiringSoon`.
 
 Server behavior:
@@ -234,20 +235,16 @@ Response:
 
 Goal: make the repo direction explicit before feature work starts.
 
+Current status: implemented.
+
 Implemented decisions:
 
-- The v1 product UI is the SwiftUI iPhone client in `ios/fridge-to-dinner/`.
-- The Next.js app is the backend-for-frontend API service.
-- The web root remains a minimal backend status page for now.
+- The v1 product UI is the Next.js web app.
+- The homepage is the product experience, not a backend status page.
+- The native iOS target has been removed from this repo.
+- The project uses pnpm only.
 - `docs/design-system.md` remains the visual source of truth.
-- `.env.example` documents planned server-side provider and rate-limit settings.
-
-Deliverables:
-
-- Update the PRD or README to confirm SwiftUI-first client plus Next.js API service.
-- Keep `docs/design-system.md` as the design token source.
-- Add environment documentation for `OPENAI_API_KEY`, model name, and rate-limit settings.
-- Decide whether the web root remains a backend status page or becomes a demo landing page later.
+- `.env.example` documents server-side provider and rate-limit settings.
 
 Acceptance criteria:
 
@@ -272,39 +269,41 @@ Acceptance criteria:
 - `/api/analyze` rejects invalid images and returns structured data for a valid fixture.
 - `/api/recipes` regenerates from ingredient JSON without requiring an image.
 
-### Phase 2 - SwiftUI design foundation
+### Phase 2 - Web UI foundation
 
-Goal: build the app shell and polished screens with mock data before networking.
+Goal: build the polished mobile-first screens with mock data before networking.
+
+Current status: implemented as the first frontend pass.
 
 Deliverables:
 
-- Bundle or configure the brand fonts used by the design system.
-- Finish the SwiftUI design tokens and primitives in `Theme.swift`.
-- Create reusable components: primary/secondary buttons, chips, recipe cards, loading scan view, error recovery view.
-- Replace the default `ContentView` with the single-flow app shell.
-- Add previews for home, review photo, loading, results, recipe detail, and error states.
+- Import the design tokens into `app/globals.css`.
+- Install and customize shadcn/ui base components.
+- Build the single-flow app shell in `components/fridge-to-dinner-app.tsx`.
+- Implement home, manual entry, review, analyzing, results, detail, privacy, error, and share states with mock data.
+- Make the layout feel first-class on mobile and composed on desktop.
 
 Acceptance criteria:
 
 - Screens match the warm paper/tomato/leaf design language.
-- Dynamic Type and VoiceOver basics are verified in previews or Simulator.
-- The app can navigate through the full mock flow without backend calls.
+- The mock flow works without backend calls.
+- Mobile, tablet, and desktop layouts avoid text overlap and awkward wrapping.
 
-### Phase 3 - Camera, preprocessing, and API integration
+### Phase 3 - Browser image preprocessing and API integration
 
 Goal: complete the real "photo in, dinner out" path.
 
 Deliverables:
 
-- Add camera capture using a SwiftUI wrapper around the system camera picker.
-- Add photo-library fallback.
-- Downscale and JPEG-compress images client-side before upload.
-- Add `FridgeAPIClient` using `URLSession` multipart upload for `/api/analyze`.
-- Wire loading, success, cancellation, retry, and timeout states.
+- Add browser file/camera input with photo-library fallback.
+- Downscale and compress images before upload.
+- Upload multipart form data to `/api/analyze`.
+- Wire loading, success, cancellation, retry, timeout, and invalid-image states.
+- Keep fixture mode available for local demos and UI work.
 
 Acceptance criteria:
 
-- A real photo can produce recipe results through the deployed or local API.
+- A real photo can produce recipe results through the local or deployed API.
 - Retake and retry do not leave stale requests updating the UI.
 - The app remains usable on slow or failed network responses.
 
@@ -317,7 +316,7 @@ Deliverables:
 - Add removable ingredient chips and manual ingredient entry.
 - Add suggested low-confidence chips that can be accepted or ignored.
 - Add preference toggles for the smallest P1 set: `Under 30 min` and `Vegetarian`.
-- Call `/api/recipes` after edits, with debounce or explicit "Update recipes" behavior.
+- Call `/api/recipes` after edits, using the existing explicit "Update recipes" behavior unless testing shows debounce is better.
 - Preserve original detected ingredients for comparison and analytics.
 
 Acceptance criteria:
@@ -326,7 +325,7 @@ Acceptance criteria:
 - Loading states make regeneration clear without replacing all context.
 - Empty or nonsensical ingredient lists are handled gracefully.
 
-### Phase 5 - Guardrails, sharing, and cost controls
+### Phase 5 - Web sharing, guardrails, and cost controls
 
 Goal: make the demo safe to share publicly.
 
@@ -334,7 +333,8 @@ Deliverables:
 
 - Add rate limiting in `lib/rate-limit.ts`, keyed by IP/device where practical.
 - Add request ids and lightweight structured logs.
-- Add native share sheet for result text or a generated share card.
+- Add Web Share API support for result text or a generated share card.
+- Add clipboard fallback for unsupported browsers.
 - Add privacy reassurance screen or sheet.
 - Add production error copy for rate limit, provider failure, invalid image, and timeout.
 
@@ -346,23 +346,33 @@ Acceptance criteria:
 
 ### Phase 6 - Release hardening
 
-Goal: prepare for TestFlight or a public demo.
+Goal: prepare for a public web demo.
 
 Deliverables:
 
 - Verify secrets and environment variables in the deployment target.
 - Add smoke tests for API route handlers with mocked provider responses.
-- Add SwiftUI snapshot/previews or simulator checks for core states.
-- Add App Store/TestFlight metadata drafts if shipping the native app.
-- Update README with local dev, backend URL configuration, and release steps.
+- Add browser checks for the core flow across mobile and desktop viewports.
+- Add a repeatable demo script: capture/upload, analyze, edit, open detail, share, snap again.
+- Update README with local dev, env, and release steps as the API integration solidifies.
 
 Acceptance criteria:
 
-- Fresh checkout can run the API and app with documented setup.
-- Demo script is repeatable: capture, analyze, edit, open detail, share, snap again.
+- Fresh checkout can run the app and API with documented setup.
+- `pnpm lint` and `pnpm build` pass.
 - Known limitations are documented rather than hidden.
 
 ## 9. Suggested File Split
+
+Frontend:
+
+- `app/page.tsx`: App Router entry that renders the product experience.
+- `app/globals.css`: design tokens, theme variables, and global styles.
+- `components/fridge-to-dinner-app.tsx`: scan-flow state machine.
+- `components/screens/*`: one exported component per user-facing screen.
+- `components/*`: shared app components such as recipe cards, chips, and shell UI.
+- `components/ui/*`: shadcn/ui source components customized to the design system.
+- `public/*`: visual assets used by the app.
 
 Backend:
 
@@ -374,18 +384,13 @@ Backend:
 - `lib/image.ts`: byte-size, MIME, and normalization helpers.
 - `lib/rate-limit.ts`: cost-control gate.
 
-iOS:
+Optional future native app:
 
-- `ContentView.swift`: temporary root only until an app shell replaces it.
-- `AppRootView.swift`: navigation and dependency injection.
-- `ScanSession.swift`: scan-flow state and transitions.
-- `FridgeAPIClient.swift`: API requests and decoding.
-- `ImagePreprocessor.swift`: downscale/compression.
-- `Components/`: buttons, chips, cards, loading, error views.
-- `Screens/`: Home, ReviewPhoto, Analyzing, Results, RecipeDetail, ManualIngredients, Privacy.
+- If a SwiftUI app returns later, treat it as a new client that consumes the same `app/api` contract rather than moving v1 back into native code.
 
 ## 10. Open Decisions
 
-- Decide whether manual ingredient entry is P0 fallback or P1 polish. Recommendation: include a minimal version in P0 because it is the best recovery path.
-- Decide if the first public demo needs shareable web links, or if native sharing is enough for the first TestFlight/demo.
+- Decide whether minimal manual ingredient entry is enough for P0 recovery, or whether it needs richer editing before the first public demo.
+- Decide if the first public demo needs durable shareable result URLs, or if Web Share/clipboard is enough.
 - Verify current model availability, structured-output syntax, image pricing, and privacy controls against provider docs immediately before implementation.
+- Decide whether a native iOS follow-up is still worth doing after web validation.

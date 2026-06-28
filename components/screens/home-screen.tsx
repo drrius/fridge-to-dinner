@@ -1,0 +1,91 @@
+import Image from "next/image";
+import { CameraIcon, ImageIcon, KeyboardIcon } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+
+import { PrivacyNote } from "../privacy-note";
+import { ScreenFrame } from "../screen-frame";
+import { demoImage } from "../mock-data";
+
+type HomeScreenProps = {
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  onChoosePhoto: () => void;
+  onDemoPhoto: () => void;
+  onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onManual: () => void;
+  onPrivacy: () => void;
+};
+
+export function HomeScreen({
+  fileInputRef,
+  onChoosePhoto,
+  onDemoPhoto,
+  onFileChange,
+  onManual,
+  onPrivacy,
+}: HomeScreenProps) {
+  return (
+    <ScreenFrame footer={<PrivacyNote onClick={onPrivacy} />}>
+      <input
+        ref={fileInputRef}
+        className="sr-only"
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={onFileChange}
+      />
+
+      <div className="flex flex-1 flex-col">
+        <div className="flex flex-col gap-2 pt-2">
+          <p className="font-machine text-xs font-medium tracking-[0.16em] text-tomato uppercase">
+            No login / ~15 sec
+          </p>
+          <p className="font-machine text-sm text-text-muted">
+            Fridge to Dinner
+          </p>
+        </div>
+
+        <div className="flex flex-1 flex-col justify-center gap-7 py-10">
+          <div className="flex flex-col gap-5">
+            <h1 className="font-display text-5xl leading-[0.95] text-ink sm:text-6xl">
+              Your fridge already knows what&apos;s for{" "}
+              <span className="italic text-tomato">dinner.</span>
+            </h1>
+            <p className="max-w-[31ch] text-base leading-7 font-semibold text-ink/75">
+              Snap a photo of your shelves. Get three dinners you can make
+              tonight plus the few things you would grab.
+            </p>
+          </div>
+
+          <div className="relative mx-auto hidden w-full max-w-[250px] sm:block lg:hidden">
+            <Image
+              src={demoImage}
+              alt="Illustrated fridge shelves"
+              width={960}
+              height={1200}
+              className="aspect-[4/5] w-full rounded-2xl border border-border object-cover shadow-hard-sm"
+              priority
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <Button size="lg" onClick={onChoosePhoto}>
+            <CameraIcon data-icon="inline-start" />
+            Snap your fridge
+          </Button>
+          <div className="grid grid-cols-2 gap-3">
+            <Button variant="outline" size="lg" onClick={onDemoPhoto}>
+              <ImageIcon data-icon="inline-start" />
+              Demo
+            </Button>
+            <Button variant="outline" size="lg" onClick={onManual}>
+              <KeyboardIcon data-icon="inline-start" />
+              Type
+            </Button>
+          </div>
+        </div>
+      </div>
+    </ScreenFrame>
+  );
+}
