@@ -18,8 +18,10 @@ export function RenderScreen({ flow }: RenderScreenProps) {
     case "home":
       return (
         <HomeScreen
-          fileInputRef={flow.fileInputRef}
-          onChoosePhoto={flow.choosePhoto}
+          albumInputRef={flow.albumInputRef}
+          cameraInputRef={flow.cameraInputRef}
+          onChooseAlbumPhoto={flow.chooseAlbumPhoto}
+          onChooseCameraPhoto={flow.chooseCameraPhoto}
           onFileChange={flow.handleFileChange}
           onManual={() => flow.setScreen("manual")}
           onPrivacy={() => flow.setScreen("privacy")}
@@ -45,7 +47,7 @@ export function RenderScreen({ flow }: RenderScreenProps) {
         <ReviewScreen
           photoUrl={flow.currentPhoto}
           onBack={() => flow.setScreen("home")}
-          onRetake={flow.choosePhoto}
+          onRetake={flow.chooseCameraPhoto}
           onUsePhoto={flow.startAnalysis}
         />
       );
@@ -110,7 +112,7 @@ export function RenderScreen({ flow }: RenderScreenProps) {
       return (
         <PrivacyScreen
           onBack={() => flow.setScreen("home")}
-          onStart={flow.choosePhoto}
+          onStart={flow.chooseCameraPhoto}
         />
       );
     case "error":
@@ -118,7 +120,7 @@ export function RenderScreen({ flow }: RenderScreenProps) {
         <ErrorScreen
           message={flow.errorMessage}
           onManual={() => flow.setScreen("manual")}
-          onRetake={flow.choosePhoto}
+          onRetake={flow.chooseCameraPhoto}
           onRetry={() => flow.setScreen(flow.selectedFile ? "review" : "home")}
         />
       );
@@ -149,7 +151,7 @@ function PhotoMissingError({ flow }: RenderScreenProps) {
     <ErrorScreen
       message="Choose a fridge photo before starting the scan."
       onManual={() => flow.setScreen("manual")}
-      onRetake={flow.choosePhoto}
+      onRetake={flow.chooseCameraPhoto}
       onRetry={() => flow.setScreen("home")}
     />
   );
@@ -163,7 +165,7 @@ function MissingResultError({
     <ErrorScreen
       message={message}
       onManual={() => flow.setScreen("manual")}
-      onRetake={flow.choosePhoto}
+      onRetake={flow.chooseCameraPhoto}
       onRetry={() => flow.setScreen("home")}
     />
   );
