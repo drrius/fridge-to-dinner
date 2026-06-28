@@ -1,6 +1,15 @@
 import SwiftUI
+import PhotosUI
+import UIKit
 
 struct OnboardingView: View {
+    var onImageSelected: (UIImage) -> Void = { _ in }
+
+    @State private var selectedImage: UIImage?
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var isCameraPresented = false
+    @State private var isCameraUnavailableAlertPresented = false
+    
     var body: some View {
         ZStack {
             Color.paper
@@ -19,7 +28,16 @@ struct OnboardingView: View {
                 
                 Spacer()
                 
-                OnboardingActions()
+                OnboardingActions(
+                    selectedPhotoItem: $selectedPhotoItem,
+                    onCameraTap: {
+                        if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                            isCameraPresented = true
+                        } else {
+                            isCameraUnavailableAlertPresented = true
+                        }
+                    }
+                )
                 
                 Spacer().frame(height: 20)
                 
@@ -28,6 +46,34 @@ struct OnboardingView: View {
             .padding(.horizontal, 28)
             .padding(.top, 36)
             .padding(.bottom, 34)
+        }
+        .onChange(of: selectedPhotoItem, initial: false) {_, newItem in
+            Task {
+                guard let data = try? await newItem?.loadTransferable(type: Data.self),
+                      let image = UIImage(data: data) else {
+                    return
+                }
+                
+                selectedImage = image
+            }
+        }
+        .onChange(of: selectedImage, initial: false) { _, image in
+            guard let image else {
+                return
+            }
+
+            onImageSelected(image)
+            selectedImage = nil
+            selectedPhotoItem = nil
+        }
+        .fullScreenCover(isPresented: $isCameraPresented) {
+            CameraPicker(selectedImage: $selectedImage)
+        }
+        .alert("Camera unavailable", isPresented: $isCameraUnavailableAlertPresented) {
+            Button("OK", role: .cancel) {
+            }
+        } message: {
+            Text("Use a physical iPhone to take a fridge photo.")
         }
     }
 }
@@ -73,10 +119,13 @@ private struct OnboardingIntroText: View {
 }
 
 private struct OnboardingActions: View {
+    @Binding var selectedPhotoItem: PhotosPickerItem?
+    let onCameraTap: () -> Void
+    
     var body: some View {
         VStack(spacing: 14) {
             Button {
-                // TODO: open camera
+                onCameraTap()
             } label: {
                 Label("Snap your fridge", systemImage: "camera.fill")
                     .font(.sansSemiBold(18))
@@ -88,9 +137,11 @@ private struct OnboardingActions: View {
             .background(Color.tomato)
             .clipShape(RoundedRectangle(cornerRadius: 20))
             
-            Button {
-                // TODO: open photo picker
-            } label: {
+            PhotosPicker(
+                selection: $selectedPhotoItem,
+                matching: .images,
+                photoLibrary: .shared()
+            ) {
                 Text("Upload a photo instead")
                     .font(.sansSemiBold(15))
                     .foregroundStyle(Color.ink)
@@ -112,7 +163,7 @@ private struct PrivacyNote: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "checkmark.shield.fill")
-                .font(.system(size: 14, weight:. semibold))
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(Color.leaf)
             
             Text("Photos are processed once, never saved.")
